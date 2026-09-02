@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SMARTJOB — Smart Job Matching & Skill Gap Analysis System
 > **Version 1 — Core Java & DSA Foundation**
 
@@ -334,3 +335,6 @@ mvn exec:java
 * **Project**: SmartJob Matcher — Version 1
 * **Engineered by**: Satya & Development Team
 * **License**: MIT Open Source License
+=======
+# Smart-Job-Matching-System-V1
+>>>>>>> e4524f01567209a1b82b49603df28d6ab7333815
