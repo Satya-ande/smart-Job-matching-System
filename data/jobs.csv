@@ -1,0 +1,7 @@
+id,title,company,location,experienceRequired,salaryMin,salaryMax,requiredSkills,preferredSkills,jobType,description
+J001,Java Backend Developer,ABC Technologies,Hyderabad,1.0,600000.0,900000.0,"Java|SQL|Spring Boot|REST API","Git|Docker",Full Time,Develop microservices and scalable REST APIs using Java and Spring Boot.
+J002,Senior Java Engineer,InnovateX Labs,Bengaluru,3.0,1200000.0,1800000.0,"Java|Spring Boot|Microservices|SQL|Docker","Kubernetes|AWS|Kafka",Full Time,Architect and optimize distributed enterprise cloud services.
+J003,Python Developer,DataPulse Tech,Pune,0.0,500000.0,800000.0,"Python|Django|SQL","Git|Docker|REST API",Full Time,Build backend web applications and data processing pipelines using Python and Django.
+J004,Machine Learning Engineer,Cognitive Systems,Hyderabad,2.0,1000000.0,1500000.0,"Python|Machine Learning|SQL|Pandas","TensorFlow|Deep Learning|Docker",Full Time,Design predictive models and deploy machine learning pipelines to production.
+J005,Junior Backend Engineer,CloudNest Solutions,Remote,0.0,450000.0,650000.0,"Java|SQL|Git","Spring Boot|REST API",Full Time,Entry-level engineering role focused on backend maintenance and database querying.
+J006,Full Stack Developer,Apex Global Tech,Bengaluru,2.0,800000.0,1200000.0,"Java|React|SQL|REST API","Spring Boot|Git|Docker",Full Time,Develop full-stack web applications with modern frontend and Java backends.

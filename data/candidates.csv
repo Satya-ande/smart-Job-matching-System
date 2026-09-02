@@ -1,0 +1,6 @@
+id,name,email,education,experience,preferredRole,preferredLocation,skills
+C001,Satya Prakash,satya@example.com,B.Tech CSE,1.5,Java Backend Developer,Hyderabad,"Java|SQL|Python|Git|Spring Boot"
+C002,Ananya Sharma,ananya.s@example.com,M.Tech Software Engineering,3.0,Full Stack Engineer,Bengaluru,"Java|Spring Boot|React|SQL|Git|Docker|REST API"
+C003,Rahul Verma,rahul.v@example.com,B.E Computer Science,0.5,Python Developer,Pune,"Python|Django|SQL|Git"
+C004,Pooja Nair,pooja.nair@example.com,B.Sc Computer Science,2.0,Machine Learning Engineer,Hyderabad,"Python|Machine Learning|SQL|Pandas|TensorFlow"
+C005,Karthik Rao,karthik.rao@example.com,B.Tech IT,0.0,Junior Backend Engineer,Remote,"Java|SQL|Git"
