@@ -1,0 +1,29 @@
+# ==========================================
+# SmartJob V2 — Test Configuration
+# ==========================================
+# Uses H2 in-memory database for fast, isolated tests
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:smartjob_test;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  h2:
+    console:
+      enabled: false
+
+jwt:
+  secret: test-secret-key-for-unit-tests-must-be-at-least-32-characters-long
+  expiration-ms: 3600000
+
+logging:
+  level:
+    com.smartjob: WARN
+    org.springframework.security: WARN

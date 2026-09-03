@@ -1,3 +1,7 @@
+# ==========================================
+# SmartJob V2 — Git Ignore
+# ==========================================
+
 # Compiled class files
 *.class
 
@@ -52,3 +56,27 @@ tmp/
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# ==========================================
+# V2 Spring Boot additions
+# ==========================================
+
+# Environment variables (secrets — NEVER commit)
+.env
+
+# Spring Boot
+*.pid
+
+# H2 Database files
+*.mv.db
+*.trace.db
+
+# Application logs
+logs/
+spring.log
+
+# Lombok
+.apt_generated/
+
+# Agents
+.agents/
