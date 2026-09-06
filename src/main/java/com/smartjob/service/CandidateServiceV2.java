@@ -33,11 +33,11 @@ public class CandidateServiceV2 {
 
     private final CandidateRepository candidateRepository;
     private final UserRepository userRepository;
-    private final SkillServiceV2 skillService;
+    private final SkillService skillService;
 
     public CandidateServiceV2(CandidateRepository candidateRepository,
                               UserRepository userRepository,
-                              SkillServiceV2 skillService) {
+                              SkillService skillService) {
         this.candidateRepository = candidateRepository;
         this.userRepository = userRepository;
         this.skillService = skillService;

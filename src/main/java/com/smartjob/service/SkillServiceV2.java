@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
  * V2 Addition: V1 stored skills as raw strings — V2 normalizes them.
  */
 @Service
-public class SkillServiceV2 {
+public class SkillServiceV2 implements SkillService {
 
     private final SkillRepository skillRepository;
 

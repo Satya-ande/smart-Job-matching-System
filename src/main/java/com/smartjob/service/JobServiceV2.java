@@ -37,7 +37,7 @@ public class JobServiceV2 {
 
     private final JobRepository jobRepository;
     private final UserRepository userRepository;
-    private final SkillServiceV2 skillService;
+    private final SkillService skillService;
 
     // Whitelist of allowed sort fields to prevent SQL injection
     private static final List<String> ALLOWED_SORT_FIELDS = List.of(
@@ -45,7 +45,7 @@ public class JobServiceV2 {
     );
 
     public JobServiceV2(JobRepository jobRepository, UserRepository userRepository,
-                        SkillServiceV2 skillService) {
+                        SkillService skillService) {
         this.jobRepository = jobRepository;
         this.userRepository = userRepository;
         this.skillService = skillService;
