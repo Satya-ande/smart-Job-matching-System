@@ -44,7 +44,7 @@ server:
 # IMPORTANT: Override jwt.secret via environment variable in production
 jwt:
   secret: ${JWT_SECRET:smartjob-v2-default-dev-secret-key-change-in-production-min-32-chars}
-  expiration-ms: ${JWT_EXPIRATION:86400000}
+  expiration-ms: ${JWT_EXPIRATION_MS:${JWT_EXPIRATION:86400000}}
 
 # ---- Logging ----
 logging:
