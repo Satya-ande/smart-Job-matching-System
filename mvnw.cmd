@@ -11,9 +11,14 @@ setlocal
 set "MAVEN_CMD=C:\Users\hp\AppData\Local\Programs\apache-maven-3.9.6\bin\mvn.cmd"
 
 if not exist "%MAVEN_CMD%" (
-    echo [ERROR] Maven not found at %MAVEN_CMD%
-    echo Please install Maven or update the path in this script.
-    exit /b 1
+    where mvn >nul 2>nul
+    if %ERRORLEVEL% equ 0 (
+        set "MAVEN_CMD=mvn"
+    ) else (
+        echo [ERROR] Maven not found at %MAVEN_CMD% or in system PATH.
+        echo Please install Maven or add it to your PATH.
+        exit /b 1
+    )
 )
 
 call "%MAVEN_CMD%" %*
