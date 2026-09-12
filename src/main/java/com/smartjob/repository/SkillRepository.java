@@ -27,6 +27,11 @@ public interface SkillRepository extends JpaRepository<Skill, Long> {
     boolean existsByNameIgnoreCase(String name);
 
     /**
+     * Find multiple skills by their exact names.
+     */
+    List<Skill> findByNameIn(List<String> names);
+
+    /**
      * Find multiple skills by their names (case-insensitive).
      * Used when creating candidates/jobs with skill lists.
      */
