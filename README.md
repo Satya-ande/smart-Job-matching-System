@@ -321,7 +321,9 @@ On application startup, [DataSeeder.java](file:///c:/Users/hp/OneDrive/Desktop/H
 
 | Role | Email | Password | Pre-loaded Data |
 |---|---|---|---|
-| **Recruiter** | `recruiter@smartjob.com` | `password123` | Pre-posted 6 enterprise jobs |
+| **Admin** | `admin@smartjob.com` | `Admin@123` | System administrator with full privileges |
+| **Recruiter** | `recruiter@smartjob.com` | `Recruiter@123` | Pre-posted 6 enterprise jobs |
+| **Candidate** | `candidate@smartjob.com` | `Candidate@123` | Default candidate profile (Java/Spring/SQL/Git) |
 | **Candidate** | `satya@example.com` | `password123` | B.Tech CSE, 2.0 yrs exp, Java/Spring/SQL/Git |
 | **Candidate** | `priya@example.com` | `password123` | M.Tech, 4.0 yrs exp, Full Stack (React + Java) |
 | **Candidate** | `rahul@example.com` | `password123` | B.Tech IT, 1.5 yrs exp, Python/SQL/Docker |
@@ -330,7 +332,36 @@ On application startup, [DataSeeder.java](file:///c:/Users/hp/OneDrive/Desktop/H
 
 ---
 
-## 9. How to Build and Run Version 2
+## 9. Postman Collection & Testing
+
+A complete Postman collection is provided in:
+```
+postman/SmartJob-V2.postman_collection.json
+```
+
+### Features:
+* **Organized Folders**: `Authentication`, `Candidates`, `Skills`, `Jobs`, `Matching`, `Applications`.
+* **Automatic JWT Handling**: Test scripts automatically capture and store `{{token}}` in collection variables upon logging in.
+* **Environment Variables**: Pre-configured variables `{{baseUrl}}`, `{{token}}`, `{{candidateId}}`, `{{jobId}}`, `{{applicationId}}`.
+
+### How to Import:
+1. Open Postman.
+2. Click **Import** (top left).
+3. Drag and drop `postman/SmartJob-V2.postman_collection.json`.
+4. Execute `Authentication -> Login Recruiter` or `Login Candidate` to populate your bearer token, and start testing!
+
+---
+
+## 10. Legacy V1 CSV Migration Utility
+
+To migrate existing Version 1 CSV data (`data/candidates.csv`, `data/jobs.csv`, `data/applications.csv`) into your Version 2 database:
+* Class: `com.smartjob.util.CsvMigrationUtility`
+* Fully idempotent: prevents duplicate records if executed repeatedly.
+* Migrates users, candidates, candidate skills, jobs, required/preferred job skills, and application records.
+
+---
+
+## 11. How to Build and Run Version 2
 
 ### Prerequisites
 * **Java Development Kit (JDK)**: Version 17 or higher (`java -version`)
@@ -342,7 +373,7 @@ mvn clean spring-boot:run
 ```
 *or using the Maven wrapper:*
 ```cmd
-mvnw.cmd clean spring-boot:run
+mvnw.cmd spring-boot:run
 ```
 * **Application URL**: `http://localhost:8080`
 * **Swagger UI Documentation**: `http://localhost:8080/swagger-ui.html`
@@ -371,6 +402,10 @@ mvnw.cmd clean spring-boot:run
 ### Step 3: Run Automated Test Suites
 ```cmd
 mvn test
+```
+*or using the Maven wrapper:*
+```cmd
+mvnw.cmd test
 ```
 Executes all unit tests, service tests, JWT validation tests, and integration test suites.
 

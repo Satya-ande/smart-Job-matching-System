@@ -36,13 +36,31 @@ public class ApplicationController {
     /**
      * POST /api/jobs/{jobId}/apply?candidateId={candidateId}
      * Apply for a job.
-     * NOTE: candidateId will come from JWT in Phase 13.
      */
     @PostMapping("/jobs/{jobId}/apply")
     public ResponseEntity<ApplicationResponse> applyForJob(
             @PathVariable Long jobId,
-            @RequestParam Long candidateId) {
-        ApplicationResponse response = applicationService.apply(candidateId, jobId);
+            @RequestParam(required = false) Long candidateId,
+            @RequestBody(required = false) com.smartjob.dto.request.ApplicationRequest request) {
+        Long resolvedCandidateId = candidateId;
+        if (resolvedCandidateId == null && request != null) {
+            resolvedCandidateId = request.getCandidateId();
+        }
+        if (resolvedCandidateId == null) {
+            throw new com.smartjob.exception.InvalidRequestException("candidateId is required");
+        }
+        ApplicationResponse response = applicationService.apply(resolvedCandidateId, jobId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * POST /api/applications
+     * Apply for a job using JSON request body.
+     */
+    @PostMapping("/applications")
+    public ResponseEntity<ApplicationResponse> submitApplication(
+            @Valid @RequestBody com.smartjob.dto.request.ApplicationRequest request) {
+        ApplicationResponse response = applicationService.apply(request.getCandidateId(), request.getJobId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

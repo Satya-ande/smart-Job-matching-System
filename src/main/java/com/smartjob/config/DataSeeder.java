@@ -76,17 +76,25 @@ public class DataSeeder implements CommandLineRunner {
         Skill nodejs = createSkill("Node.js");
 
         // ===== 2. Create Users =====
-        // Recruiter
-        User recruiter = createUser("Tech Recruiter", "recruiter@smartjob.com", "password123", Role.RECRUITER);
+        // Default Admin
+        User admin = createUser("System Admin", "admin@smartjob.com", "Admin@123", Role.ADMIN);
+
+        // Default Recruiter
+        User recruiter = createUser("Tech Recruiter", "recruiter@smartjob.com", "Recruiter@123", Role.RECRUITER);
+
+        // Default Candidate
+        User defaultCandidate = createUser("Demo Candidate", "candidate@smartjob.com", "Candidate@123", Role.CANDIDATE);
 
         // Candidates (matching V1 data)
-        User satyaUser = createUser("Satya Ande", "satya@example.com", "password123", Role.CANDIDATE);
+        User satyaUser = createUser("Satya Prakash", "satya@example.com", "password123", Role.CANDIDATE);
         User priyaUser = createUser("Priya Sharma", "priya@example.com", "password123", Role.CANDIDATE);
         User rahulUser = createUser("Rahul Verma", "rahul@example.com", "password123", Role.CANDIDATE);
         User ankitUser = createUser("Ankit Patel", "ankit@example.com", "password123", Role.CANDIDATE);
-        User nehaaUser = createUser("Neha Reddy", "neha@example.com", "password123", Role.CANDIDATE);
+        User nehaUser = createUser("Neha Reddy", "neha@example.com", "password123", Role.CANDIDATE);
 
         // ===== 3. Create Candidate Profiles =====
+        createCandidate(defaultCandidate, "B.Tech Computer Science", 3.0,
+            "Software Engineer", "Hyderabad", Set.of(java, spring, sql, git));
         Candidate satya = createCandidate(satyaUser, "B.Tech Computer Science", 2.0,
             "Java Developer", "Hyderabad", Set.of(java, python, sql, spring, git));
 
@@ -99,7 +107,7 @@ public class DataSeeder implements CommandLineRunner {
         Candidate ankit = createCandidate(ankitUser, "MCA", 3.0,
             "Cloud Engineer", "Hyderabad", Set.of(aws, docker, kubernetes, python, sql));
 
-        Candidate neha = createCandidate(nehaaUser, "B.Tech CSE", 5.0,
+        Candidate neha = createCandidate(nehaUser, "B.Tech CSE", 5.0,
             "Tech Lead", "Bengaluru", Set.of(java, spring, react, aws, docker, sql, git));
 
         // ===== 4. Create Jobs (matching V1 data) =====

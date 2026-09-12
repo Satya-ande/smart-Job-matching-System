@@ -94,6 +94,18 @@ public class CandidateServiceV2 {
     }
 
     /**
+     * Update candidate profile with user ownership verification.
+     */
+    @Transactional
+    public CandidateResponse updateCandidate(Long id, Long userId, CandidateUpdateRequest request) {
+        Candidate candidate = findCandidateEntity(id);
+        if (userId != null && candidate.getUser() != null && !candidate.getUser().getId().equals(userId)) {
+            throw new com.smartjob.exception.ForbiddenException("You are not authorized to modify another candidate's profile");
+        }
+        return updateCandidate(id, request);
+    }
+
+    /**
      * Update candidate profile.
      */
     @Transactional

@@ -30,6 +30,11 @@ public interface JobRepository extends JpaRepository<Job, Long>, JpaSpecificatio
     List<Job> findByRecruiterId(Long recruiterId);
 
     /**
+     * Find job by title and company name (exact match, case sensitive).
+     */
+    java.util.Optional<Job> findByTitleAndCompany(String title, String company);
+
+    /**
      * Keyword search across title, company, and description (case-insensitive).
      * V1 equivalent: JobService.searchByTitle() + searchByCompany()
      */

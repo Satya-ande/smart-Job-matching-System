@@ -1,0 +1,631 @@
+{
+  "info": {
+    "_postman_id": "7a33e24c-9f89-4bc7-9f44-8840293a6120",
+    "name": "SmartJob V2 — REST API",
+    "description": "Comprehensive Postman collection for SmartJob Version 2 (Spring Boot 3.2.5 + PostgreSQL/H2 + JWT Authentication + JPA).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "candidateId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "jobId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "applicationId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Recruiter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sarah Connor\",\n  \"email\": \"sarah.recruiter@example.com\",\n  \"password\": \"SecurePass@123\",\n  \"role\": \"RECRUITER\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register Candidate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alex Mercer\",\n  \"email\": \"alex.mercer@example.com\",\n  \"password\": \"CandidatePass@123\",\n  \"role\": \"CANDIDATE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login Recruiter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var data = pm.response.json();",
+                  "    pm.collectionVariables.set('token', data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"recruiter@smartjob.com\",\n  \"password\": \"Recruiter@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login Candidate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var data = pm.response.json();",
+                  "    pm.collectionVariables.set('token', data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"candidate@smartjob.com\",\n  \"password\": \"Candidate@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User (Me)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Candidates",
+      "item": [
+        {
+          "name": "Get All Candidates (Paged)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Candidate By ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/{{candidateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "{{candidateId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create / Update Candidate Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"education\": \"B.Tech Computer Science\",\n  \"experience\": 3.5,\n  \"preferredRole\": \"Senior Java Developer\",\n  \"preferredLocation\": \"Hyderabad\",\n  \"skills\": [\"Java\", \"Spring Boot\", \"Docker\", \"SQL\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates"]
+            }
+          }
+        },
+        {
+          "name": "Update Candidate Skills",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\"Java\", \"Spring Boot\", \"PostgreSQL\", \"Docker\", \"Kubernetes\"]"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/{{candidateId}}/skills",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "{{candidateId}}", "skills"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Skills",
+      "item": [
+        {
+          "name": "Get All Skills",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/skills",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "skills"]
+            }
+          }
+        },
+        {
+          "name": "Create Skill",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"GraphQL\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/skills",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "skills"]
+            }
+          }
+        },
+        {
+          "name": "Search Skills",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/skills/search?query=Java",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "skills", "search"],
+              "query": [
+                { "key": "query", "value": "Java" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Jobs",
+      "item": [
+        {
+          "name": "Create Job",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Lead Java Engineer\",\n  \"company\": \"Starlight Cloud Labs\",\n  \"location\": \"Hyderabad\",\n  \"experienceRequired\": 4.0,\n  \"salaryMin\": 1400000.0,\n  \"salaryMax\": 2200000.0,\n  \"jobType\": \"FULL_TIME\",\n  \"description\": \"Design high-concurrency microservice architectures\",\n  \"requiredSkills\": [\"Java\", \"Spring Boot\", \"SQL\"],\n  \"preferredSkills\": [\"Docker\", \"AWS\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs"]
+            }
+          }
+        },
+        {
+          "name": "Get Jobs (Paged, Sorted, Filtered)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs?page=0&size=10&sort=salaryMax,desc&location=Hyderabad",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" },
+                { "key": "sort", "value": "salaryMax,desc" },
+                { "key": "location", "value": "Hyderabad" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Job By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs/{{jobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs", "{{jobId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Job",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Principal Java Architect\",\n  \"company\": \"Starlight Cloud Labs\",\n  \"location\": \"Remote\",\n  \"experienceRequired\": 5.0,\n  \"salaryMin\": 1800000.0,\n  \"salaryMax\": 2800000.0,\n  \"jobType\": \"REMOTE\",\n  \"description\": \"Architect cloud native solutions across multi-region clusters\",\n  \"requiredSkills\": [\"Java\", \"Spring Boot\", \"SQL\"],\n  \"preferredSkills\": [\"Kubernetes\", \"AWS\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs/{{jobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs", "{{jobId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Job",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs/{{jobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs", "{{jobId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Recruiter's Jobs",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs/my-jobs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs", "my-jobs"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Matching",
+      "item": [
+        {
+          "name": "Match Candidates for Job",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/match/job/{{jobId}}?limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "match", "job", "{{jobId}}"],
+              "query": [
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Match Jobs for Candidate",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/match/candidate/{{candidateId}}?limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "match", "candidate", "{{candidateId}}"],
+              "query": [
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Skill Gap Analysis",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/match/gap/candidate/{{candidateId}}/job/{{jobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "match", "gap", "candidate", "{{candidateId}}", "job", "{{jobId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Applications",
+      "item": [
+        {
+          "name": "Apply for Job (POST /api/jobs/{jobId}/apply)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs/{{jobId}}/apply",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs", "{{jobId}}", "apply"]
+            }
+          }
+        },
+        {
+          "name": "Get Applications for Job",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs/{{jobId}}/applications",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs", "{{jobId}}", "applications"]
+            }
+          }
+        },
+        {
+          "name": "Update Application Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}/status?status=SHORTLISTED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications", "{{applicationId}}", "status"],
+              "query": [
+                { "key": "status", "value": "SHORTLISTED" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

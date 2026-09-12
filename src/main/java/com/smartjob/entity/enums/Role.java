@@ -8,5 +8,6 @@ package com.smartjob.entity.enums;
  */
 public enum Role {
     CANDIDATE,
-    RECRUITER
+    RECRUITER,
+    ADMIN
 }

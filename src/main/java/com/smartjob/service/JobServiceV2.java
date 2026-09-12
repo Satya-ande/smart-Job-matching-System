@@ -188,6 +188,30 @@ public class JobServiceV2 {
     }
 
     /**
+     * Update an existing job with recruiter ownership verification.
+     */
+    @Transactional
+    public JobResponse updateJob(Long id, Long recruiterId, JobUpdateRequest request) {
+        Job job = findJobEntity(id);
+        if (recruiterId != null && job.getRecruiter() != null && !job.getRecruiter().getId().equals(recruiterId)) {
+            throw new com.smartjob.exception.ForbiddenException("You are not authorized to modify another recruiter's job posting");
+        }
+        return updateJob(id, request);
+    }
+
+    /**
+     * Delete a job with recruiter ownership verification.
+     */
+    @Transactional
+    public void deleteJob(Long id, Long recruiterId) {
+        Job job = findJobEntity(id);
+        if (recruiterId != null && job.getRecruiter() != null && !job.getRecruiter().getId().equals(recruiterId)) {
+            throw new com.smartjob.exception.ForbiddenException("You are not authorized to delete another recruiter's job posting");
+        }
+        deleteJob(id);
+    }
+
+    /**
      * Delete a job.
      */
     @Transactional
