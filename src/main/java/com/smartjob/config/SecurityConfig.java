@@ -59,6 +59,16 @@ public class SecurityConfig {
 
             // Authorization rules
             .authorizeHttpRequests(auth -> auth
+                // Public: Static Web UI resources & SPA entry point
+                .requestMatchers(
+                    "/",
+                    "/index.html",
+                    "/css/**",
+                    "/js/**",
+                    "/assets/**",
+                    "/favicon.ico"
+                ).permitAll()
+
                 // Public: Auth endpoints
                 .requestMatchers("/api/auth/**").permitAll()
 
