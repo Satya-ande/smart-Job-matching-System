@@ -53,27 +53,62 @@ public class JobController {
     }
 
     /**
-     * GET /api/jobs?page=0&size=10&sortBy=createdAt&sortDir=desc
-     * List all jobs with pagination and sorting.
+     * GET /api/jobs
+     * List, search, filter, and sort jobs dynamically.
+     * Supports:
+     *   GET /api/jobs?location=Hyderabad
+     *   GET /api/jobs?minSalary=600000
+     *   GET /api/jobs?jobType=FULL_TIME
+     *   GET /api/jobs?experienceRequired=0
+     *   GET /api/jobs?skill=Java
+     *   GET /api/jobs?sort=salaryMax,desc
      */
     @GetMapping
     public ResponseEntity<Page<JobResponse>> getAllJobs(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) Double minSalary,
+            @RequestParam(required = false) Double maxSalary,
+            @RequestParam(required = false) Double experienceRequired,
+            @RequestParam(required = false) String jobType,
+            @RequestParam(required = false) String skill,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
 
-        // Validate sort field against whitelist
-        if (!JobServiceV2.isAllowedSortField(sortBy)) {
-            sortBy = "createdAt";
+        // Parse sort parameter if provided like "salaryMax,desc"
+        String activeSortBy = sortBy;
+        String activeSortDir = sortDir;
+        if (sort != null && !sort.trim().isEmpty()) {
+            String[] parts = sort.split(",");
+            if (parts.length > 0 && !parts[0].trim().isEmpty()) {
+                activeSortBy = parts[0].trim();
+            }
+            if (parts.length > 1 && !parts[1].trim().isEmpty()) {
+                activeSortDir = parts[1].trim();
+            }
         }
 
-        Sort sort = sortDir.equalsIgnoreCase("asc")
-            ? Sort.by(sortBy).ascending()
-            : Sort.by(sortBy).descending();
-        Pageable pageable = PageRequest.of(page, Math.min(size, 50), sort);
+        // Validate sort field against whitelist
+        if (!JobServiceV2.isAllowedSortField(activeSortBy)) {
+            activeSortBy = "createdAt";
+        }
 
-        return ResponseEntity.ok(jobService.getAllJobs(pageable));
+        Sort sortObj = activeSortDir.equalsIgnoreCase("asc")
+            ? Sort.by(activeSortBy).ascending()
+            : Sort.by(activeSortBy).descending();
+        Pageable pageable = PageRequest.of(page, Math.min(size, 50), sortObj);
+
+        com.smartjob.entity.enums.JobType parsedJobType = null;
+        if (jobType != null && !jobType.trim().isEmpty()) {
+            parsedJobType = com.smartjob.entity.enums.JobType.fromString(jobType);
+        }
+
+        return ResponseEntity.ok(jobService.filterJobs(
+            keyword, location, minSalary, maxSalary, experienceRequired, parsedJobType, skill, pageable
+        ));
     }
 
     /**

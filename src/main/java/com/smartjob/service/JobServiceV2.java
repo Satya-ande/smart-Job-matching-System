@@ -126,6 +126,29 @@ public class JobServiceV2 {
     }
 
     /**
+     * Dynamic search and multi-criteria filtering using JPA Specifications.
+     * Implements Section 16 & 17.
+     */
+    @Transactional(readOnly = true)
+    public Page<JobResponse> filterJobs(
+            String keyword,
+            String location,
+            Double minSalary,
+            Double maxSalary,
+            Double experienceRequired,
+            JobType jobType,
+            String skill,
+            Pageable pageable) {
+
+        org.springframework.data.jpa.domain.Specification<Job> spec =
+            com.smartjob.specification.JobSpecification.filterJobs(
+                keyword, location, minSalary, maxSalary, experienceRequired, jobType, skill
+            );
+
+        return jobRepository.findAll(spec, pageable).map(EntityMapper::toJobResponse);
+    }
+
+    /**
      * Update an existing job.
      */
     @Transactional
