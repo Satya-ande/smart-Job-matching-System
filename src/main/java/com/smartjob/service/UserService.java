@@ -69,13 +69,15 @@ public class UserService {
             saved.getId(), saved.getEmail(), saved.getRole().name()
         );
 
-        return new AuthResponse(
+        AuthResponse authResponse = new AuthResponse(
             token,
             jwtTokenProvider.getExpirationMs(),
             saved.getRole().name(),
             saved.getName(),
             saved.getEmail()
         );
+        authResponse.setId(saved.getId());
+        return authResponse;
     }
 
     /**
@@ -96,13 +98,15 @@ public class UserService {
             user.getId(), user.getEmail(), user.getRole().name()
         );
 
-        return new AuthResponse(
+        AuthResponse authResponse = new AuthResponse(
             token,
             jwtTokenProvider.getExpirationMs(),
             user.getRole().name(),
             user.getName(),
             user.getEmail()
         );
+        authResponse.setId(user.getId());
+        return authResponse;
     }
 
     @Transactional(readOnly = true)

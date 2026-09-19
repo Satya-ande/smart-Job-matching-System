@@ -103,4 +103,15 @@ public class ApplicationController {
             @Valid @RequestBody StatusUpdateRequest request) {
         return ResponseEntity.ok(applicationService.updateStatus(id, request.getStatus()));
     }
+
+    /**
+     * PUT /api/applications/{id}/status?status=X
+     * Update application status via query param (used by Web UI).
+     */
+    @PutMapping("/applications/{id}/status")
+    public ResponseEntity<ApplicationResponse> updateStatusViaParam(
+            @PathVariable Long id,
+            @RequestParam String status) {
+        return ResponseEntity.ok(applicationService.updateStatus(id, status));
+    }
 }

@@ -1,13 +1,15 @@
 /**
- * SmartJob V2 — Interactive Single Page Application Logic
+ * SmartJob V2 — Interactive Single Page Application
+ * Fixed version: corrects API field names, auth /me, applications endpoint,
+ * job skill rendering, and login state management.
  */
 
 const API_BASE = '';
 let authToken = localStorage.getItem('smartjob_jwt') || '';
-let currentUser = null;
-let currentCandidate = null;
-let allJobs = [];
+let currentUser = null;   // { id, name, email, role }
+let currentCandidate = null; // CandidateResponse for logged-in CANDIDATE users
 let allCandidates = [];
+let allJobs = [];
 
 let jobFilters = {
   keyword: '',
@@ -25,19 +27,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupFilterListeners();
   await loadInitialStats();
   await loadJobs();
-  await loadCandidatesAndJobsForSelectors();
 
-  // Try auto-login if token exists
   if (authToken) {
     await fetchCurrentUser();
   } else {
-    // Default demo login as Satya (Candidate) for instant rich presentation!
-    await quickLogin('satya@example.com', 'password123', 'Satya Prakash (Candidate)', false);
+    // Auto demo-login as Satya (Candidate) for a rich first-impression
+    await quickLogin('satya@example.com', 'password123', 'Satya Prakash', false);
   }
+
+  // Load candidates and jobs for dropdowns AFTER potential auth
+  await loadCandidatesAndJobsForSelectors();
 });
 
 // ==========================================
-// API Client Helper
+// API Client
 // ==========================================
 async function apiCall(endpoint, options = {}) {
   const headers = {
@@ -57,11 +60,13 @@ async function apiCall(endpoint, options = {}) {
 
     if (response.status === 401) {
       if (authToken) {
-        showToast('Session expired. Please log in again.', 'error');
-        logout();
+        showToast('Session expired. Please sign in again.', 'error');
+        logout(false);
       }
       return null;
     }
+
+    if (response.status === 204) return true;
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
@@ -81,28 +86,27 @@ async function apiCall(endpoint, options = {}) {
 }
 
 // ==========================================
-// Navigation & Views
+// Navigation
 // ==========================================
 function switchView(viewName) {
-  document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+  document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
 
-  const targetSection = document.getElementById(`view-${viewName}`);
-  const targetNav = document.getElementById(`nav-${viewName}`);
-
-  if (targetSection) targetSection.classList.add('active');
-  if (targetNav) targetNav.classList.add('active');
+  const section = document.getElementById(`view-${viewName}`);
+  const navItem = document.getElementById(`nav-${viewName}`);
+  if (section) section.classList.add('active');
+  if (navItem) navItem.classList.add('active');
 
   if (viewName === 'applications') loadApplications();
   if (viewName === 'profile') loadCandidateProfile();
-  if (viewName === 'matcher') runMatchCalculation();
-  if (viewName === 'gap') runSkillGapAnalysis();
+  if (viewName === 'matcher') { populateMatcherDropdowns(); }
+  if (viewName === 'gap') { populateGapDropdowns(); }
 }
 
 // ==========================================
-// Authentication & User State
+// Authentication
 // ==========================================
-async function quickLogin(email, password, displayName, showNotification = true) {
+async function quickLogin(email, password, displayName, notify = true) {
   try {
     const res = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
@@ -117,43 +121,65 @@ async function quickLogin(email, password, displayName, showNotification = true)
     }
 
     const data = await res.json();
-    authToken = data.token;
+    // The login response has accessToken or token field
+    authToken = data.accessToken || data.token || '';
     localStorage.setItem('smartjob_jwt', authToken);
 
-    await fetchCurrentUser();
+    // Populate currentUser from login response directly (no extra /me call needed)
+    currentUser = {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      role: data.role
+    };
 
-    if (showNotification) {
-      showToast(`Logged in as ${displayName}`, 'success');
-    }
-    
-    // Refresh current views
+    updateUserStatusUI();
+    if (notify) showToast(`Signed in as ${displayName || data.name}`, 'success');
+
+    // Refresh all views
+    await loadCandidatesAndJobsForSelectors();
     loadJobs();
     loadApplications();
+
   } catch (e) {
     showToast(e.message, 'error');
   }
 }
 
 async function fetchCurrentUser() {
-  const user = await apiCall('/api/auth/me');
-  if (!user) return;
+  if (!authToken) return;
 
-  currentUser = user;
-  updateUserStatusUI();
-
-  // If candidate, find candidate profile
-  if (user.role === 'CANDIDATE') {
-    const candidatesRes = await apiCall('/api/candidates?size=50');
-    if (candidatesRes && candidatesRes.content) {
-      currentCandidate = candidatesRes.content.find(c => c.user && c.user.id === user.id) || candidatesRes.content[0];
-    }
-  } else {
-    currentCandidate = null;
+  const data = await apiCall('/api/auth/me');
+  if (!data) {
+    // Token is invalid/expired
+    logout(false);
+    return;
   }
+
+  currentUser = {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    role: data.role
+  };
+
+  updateUserStatusUI();
+}
+
+function logout(notify = true) {
+  authToken = '';
+  currentUser = null;
+  currentCandidate = null;
+  localStorage.removeItem('smartjob_jwt');
+  updateUserStatusUI();
+  if (notify) showToast('Signed out successfully', 'info');
+  loadJobs();
 }
 
 function updateUserStatusUI() {
   const section = document.getElementById('userStatusSection');
+  if (!section) return;
+
   if (!currentUser) {
     section.innerHTML = `
       <button class="btn btn-secondary btn-sm" onclick="openModal('loginModal')">Sign In</button>
@@ -161,115 +187,114 @@ function updateUserStatusUI() {
     return;
   }
 
-  const roleLabel = currentUser.role.replace('ROLE_', '');
   const initials = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  const roleBadge = (currentUser.role || '').replace('ROLE_', '');
 
-  let postJobBtn = '';
-  if (currentUser.role === 'RECRUITER' || currentUser.role === 'ADMIN') {
-    postJobBtn = `<button class="btn btn-primary btn-sm" onclick="openModal('postJobModal')">+ Post Job</button>`;
-  }
+  const recruiterBtn = (currentUser.role === 'RECRUITER' || currentUser.role === 'ADMIN')
+    ? `<button class="btn btn-primary btn-sm" onclick="openModal('postJobModal')">+ Post Job</button>`
+    : '';
 
   section.innerHTML = `
-    ${postJobBtn}
+    ${recruiterBtn}
     <div class="user-pill">
       <div class="user-avatar">${initials}</div>
       <div class="user-info">
         <span class="user-name">${currentUser.name}</span>
-        <span class="user-role-badge">${roleLabel}</span>
+        <span class="user-role-badge">${roleBadge}</span>
       </div>
     </div>
-    <button class="btn btn-secondary btn-sm" onclick="logout()" title="Log out">Sign Out</button>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
   `;
 }
 
-function logout() {
-  authToken = '';
-  currentUser = null;
-  currentCandidate = null;
-  localStorage.removeItem('smartjob_jwt');
-  updateUserStatusUI();
-  showToast('Signed out successfully', 'info');
-  loadJobs();
-}
-
 // ==========================================
-// Statistics & Data Loading
+// Stats & dropdown population
 // ==========================================
 async function loadInitialStats() {
-  const jobsRes = await apiCall('/api/jobs?size=1');
-  const candRes = await apiCall('/api/candidates?size=1');
+  const [jobsRes, candCountRes] = await Promise.all([
+    apiCall('/api/jobs?size=1'),
+    apiCall('/api/candidates/count')
+  ]);
 
-  if (jobsRes) {
-    document.getElementById('statTotalJobs').textContent = jobsRes.totalElements || '6';
-  }
-  if (candRes) {
-    document.getElementById('statTotalCandidates').textContent = candRes.totalElements || '6';
-  }
+  if (jobsRes) document.getElementById('statTotalJobs').textContent = jobsRes.totalElements ?? '-';
+  if (candCountRes) document.getElementById('statTotalCandidates').textContent = candCountRes.count ?? '-';
 }
 
 async function loadCandidatesAndJobsForSelectors() {
-  const cRes = await apiCall('/api/candidates?size=50');
-  const jRes = await apiCall('/api/jobs?size=50');
+  // Candidates returns a flat List, jobs returns a Page
+  const [cRes, jRes] = await Promise.all([
+    apiCall('/api/candidates'),
+    apiCall('/api/jobs?size=50')
+  ]);
 
-  if (cRes && cRes.content) {
-    allCandidates = cRes.content;
-    populateCandidateDropdowns(allCandidates);
+  if (Array.isArray(cRes)) {
+    allCandidates = cRes;
+
+    // Find current candidate profile if user is logged in as CANDIDATE
+    if (currentUser && currentUser.role === 'CANDIDATE') {
+      currentCandidate = allCandidates.find(c => c.email === currentUser.email)
+        || allCandidates[0];
+    }
   }
 
   if (jRes && jRes.content) {
     allJobs = jRes.content;
-    populateJobDropdowns(allJobs);
   }
+
+  populateMatcherDropdowns();
+  populateGapDropdowns();
 }
 
-function populateCandidateDropdowns(candidates) {
-  const selects = ['matchCandidateSelect', 'gapCandidateSelect'];
-  selects.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.innerHTML = candidates.map(c => `
-      <option value="${c.id}">${c.name} (${c.preferredRole || 'Candidate'}) - ${c.experience} yrs</option>
-    `).join('');
-  });
+function populateMatcherDropdowns() {
+  populateCandidateSelect('matchCandidateSelect');
+  populateJobSelect('matchJobSelect');
 }
 
-function populateJobDropdowns(jobs) {
-  const selects = ['matchJobSelect', 'gapJobSelect'];
-  selects.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.innerHTML = jobs.map(j => `
-      <option value="${j.id}">${j.title} @ ${j.company} (${j.location})</option>
-    `).join('');
-  });
+function populateGapDropdowns() {
+  populateCandidateSelect('gapCandidateSelect');
+  populateJobSelect('gapJobSelect');
+}
+
+function populateCandidateSelect(selectId) {
+  const el = document.getElementById(selectId);
+  if (!el || allCandidates.length === 0) return;
+  el.innerHTML = allCandidates.map(c =>
+    `<option value="${c.id}">${c.name} — ${c.preferredRole || 'Candidate'} (${c.experience} yrs)</option>`
+  ).join('');
+
+  // Pre-select current candidate if logged in
+  if (currentCandidate) el.value = currentCandidate.id;
+}
+
+function populateJobSelect(selectId) {
+  const el = document.getElementById(selectId);
+  if (!el || allJobs.length === 0) return;
+  el.innerHTML = allJobs.map(j =>
+    `<option value="${j.id}">${j.title} @ ${j.company} (${j.location})</option>`
+  ).join('');
 }
 
 // ==========================================
 // Browse Jobs
 // ==========================================
 function setupFilterListeners() {
-  const keywordInput = document.getElementById('searchKeyword');
-  const locationInput = document.getElementById('filterLocation');
-  const jobTypeSelect = document.getElementById('filterJobType');
-  const sortSelect = document.getElementById('sortJobs');
-
-  let debounceTimer;
-  const triggerDebouncedSearch = () => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      jobFilters.keyword = keywordInput.value.trim();
-      jobFilters.location = locationInput.value.trim();
-      jobFilters.jobType = jobTypeSelect.value;
-      jobFilters.sort = sortSelect.value;
+  let timer;
+  const trigger = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      jobFilters.keyword  = document.getElementById('searchKeyword').value.trim();
+      jobFilters.location = document.getElementById('filterLocation').value.trim();
+      jobFilters.jobType  = document.getElementById('filterJobType').value;
+      jobFilters.sort     = document.getElementById('sortJobs').value;
       jobFilters.page = 0;
       loadJobs();
-    }, 250);
+    }, 280);
   };
 
-  keywordInput.addEventListener('input', triggerDebouncedSearch);
-  locationInput.addEventListener('input', triggerDebouncedSearch);
-  jobTypeSelect.addEventListener('change', triggerDebouncedSearch);
-  sortSelect.addEventListener('change', triggerDebouncedSearch);
+  ['searchKeyword', 'filterLocation'].forEach(id =>
+    document.getElementById(id)?.addEventListener('input', trigger));
+  ['filterJobType', 'sortJobs'].forEach(id =>
+    document.getElementById(id)?.addEventListener('change', trigger));
 }
 
 function resetJobFilters() {
@@ -277,124 +302,136 @@ function resetJobFilters() {
   document.getElementById('filterLocation').value = '';
   document.getElementById('filterJobType').value = '';
   document.getElementById('sortJobs').value = 'id,desc';
-
-  jobFilters = {
-    keyword: '',
-    location: '',
-    jobType: '',
-    sort: 'id,desc',
-    page: 0,
-    size: 6
-  };
+  jobFilters = { keyword: '', location: '', jobType: '', sort: 'id,desc', page: 0, size: 6 };
   loadJobs();
 }
 
 async function loadJobs() {
   const container = document.getElementById('jobsGridContainer');
-  container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 48px; color: var(--text-muted);">Loading jobs...</div>`;
+  container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-muted)">Loading jobs...</div>`;
 
   let query = `/api/jobs?page=${jobFilters.page}&size=${jobFilters.size}&sort=${jobFilters.sort}`;
-  if (jobFilters.keyword) query += `&keyword=${encodeURIComponent(jobFilters.keyword)}`;
+  if (jobFilters.keyword)  query += `&keyword=${encodeURIComponent(jobFilters.keyword)}`;
   if (jobFilters.location) query += `&location=${encodeURIComponent(jobFilters.location)}`;
-  if (jobFilters.jobType) query += `&jobType=${encodeURIComponent(jobFilters.jobType)}`;
+  if (jobFilters.jobType)  query += `&jobType=${encodeURIComponent(jobFilters.jobType)}`;
 
   const res = await apiCall(query);
   if (!res || !res.content || res.content.length === 0) {
-    container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 48px; color: var(--text-secondary);">No jobs found matching your criteria.</div>`;
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-secondary)">No jobs found. Try adjusting your filters.</div>`;
     renderPagination(0, 0);
     return;
   }
 
   container.innerHTML = res.content.map(job => renderJobCard(job)).join('');
   renderPagination(res.number, res.totalPages);
+
+  // Keep allJobs in sync so dropdowns stay populated
+  if (allJobs.length === 0) allJobs = res.content;
+}
+
+function extractSkills(job) {
+  // API returns: job.skills = [{name, required, weight}]
+  const req = [], pref = [];
+  (job.skills || []).forEach(s => {
+    if (s.required) req.push(s.name);
+    else pref.push(s.name);
+  });
+  return { req, pref };
 }
 
 function renderJobCard(job) {
-  const salaryFmt = `₹${(job.salaryMin / 100000).toFixed(1)}L - ₹${(job.salaryMax / 100000).toFixed(1)}L`;
-  const reqSkills = job.requiredSkills || [];
-  const prefSkills = job.preferredSkills || [];
+  const { req, pref } = extractSkills(job);
+  const salaryFmt = `₹${(job.salaryMin / 100000).toFixed(1)}L – ₹${(job.salaryMax / 100000).toFixed(1)}L`;
+  const jobTypeFmt = (job.jobType || 'FULL_TIME').replace(/_/g, ' ');
 
   return `
-    <div class="job-card">
-      <div>
-        <div class="job-header">
-          <div>
-            <h3 class="job-title">${job.title}</h3>
-            <div class="job-company">🏢 ${job.company}</div>
-          </div>
-          <span class="badge badge-primary">${(job.jobType || 'FULL_TIME').replace('_', ' ')}</span>
+  <div class="job-card">
+    <div>
+      <div class="job-header">
+        <div>
+          <h3 class="job-title">${job.title}</h3>
+          <div class="job-company">🏢 ${job.company}</div>
         </div>
-
-        <div class="job-details">
-          <span class="job-meta-item">📍 ${job.location}</span>
-          <span class="job-meta-item">⏱️ ${job.experienceRequired} yrs req.</span>
-        </div>
-
-        <p class="job-description">${job.description || 'No description provided.'}</p>
-
-        <div class="skills-wrapper">
-          <div class="skills-heading">Required Skills (Weight: 5)</div>
-          <div class="skills-list">
-            ${reqSkills.map(s => `<span class="skill-chip skill-req">${s}</span>`).join('') || '<span style="color:var(--text-muted);font-size:0.75rem;">None</span>'}
-          </div>
-        </div>
-
-        ${prefSkills.length > 0 ? `
-          <div class="skills-wrapper">
-            <div class="skills-heading">Preferred Skills (Weight: 2)</div>
-            <div class="skills-list">
-              ${prefSkills.map(s => `<span class="skill-chip skill-pref">${s}</span>`).join('')}
-            </div>
-          </div>
-        ` : ''}
+        <span class="badge badge-primary">${jobTypeFmt}</span>
       </div>
 
-      <div class="job-footer">
-        <div class="job-salary">${salaryFmt}</div>
-        <div class="job-card-actions">
-          <button class="btn btn-secondary btn-sm" onclick="matchSpecificJob(${job.id})">⚡ Match</button>
-          <button class="btn btn-primary btn-sm" onclick="applyForJob(${job.id})">Apply</button>
+      <div class="job-details">
+        <span class="job-meta-item">📍 ${job.location}</span>
+        <span class="job-meta-item">⏱️ ${job.experienceRequired} yrs req.</span>
+      </div>
+
+      <p class="job-description">${job.description || 'No description provided.'}</p>
+
+      <div class="skills-wrapper">
+        <div class="skills-heading">Required Skills (Weight: 5)</div>
+        <div class="skills-list">
+          ${req.length ? req.map(s => `<span class="skill-chip skill-req">${s}</span>`).join('') : '<span style="color:var(--text-muted);font-size:0.75rem">None specified</span>'}
         </div>
+      </div>
+
+      ${pref.length ? `
+      <div class="skills-wrapper">
+        <div class="skills-heading">Preferred Skills (Weight: 2)</div>
+        <div class="skills-list">
+          ${pref.map(s => `<span class="skill-chip skill-pref">${s}</span>`).join('')}
+        </div>
+      </div>` : ''}
+    </div>
+
+    <div class="job-footer">
+      <div class="job-salary">${salaryFmt}</div>
+      <div class="job-card-actions">
+        <button class="btn btn-secondary btn-sm" onclick="matchSpecificJob(${job.id})">⚡ Match</button>
+        <button class="btn btn-primary btn-sm" onclick="applyForJob(${job.id})">Apply</button>
       </div>
     </div>
-  `;
+  </div>`;
 }
 
 function renderPagination(currentPage, totalPages) {
-  const container = document.getElementById('jobsPagination');
-  if (totalPages <= 1) {
-    container.innerHTML = '';
-    return;
-  }
-
-  container.innerHTML = `
-    <button class="btn btn-secondary btn-sm" ${currentPage === 0 ? 'disabled' : ''} onclick="changeJobPage(${currentPage - 1})">Previous</button>
-    <span style="display:flex;align-items:center;color:var(--text-secondary);font-size:0.88rem;">Page ${currentPage + 1} of ${totalPages}</span>
-    <button class="btn btn-secondary btn-sm" ${currentPage >= totalPages - 1 ? 'disabled' : ''} onclick="changeJobPage(${currentPage + 1})">Next</button>
+  const c = document.getElementById('jobsPagination');
+  if (!c || totalPages <= 1) { if (c) c.innerHTML = ''; return; }
+  c.innerHTML = `
+    <button class="btn btn-secondary btn-sm" ${currentPage === 0 ? 'disabled' : ''} onclick="changeJobPage(${currentPage - 1})">← Prev</button>
+    <span style="display:flex;align-items:center;color:var(--text-secondary);font-size:0.88rem">Page ${currentPage + 1} of ${totalPages}</span>
+    <button class="btn btn-secondary btn-sm" ${currentPage >= totalPages - 1 ? 'disabled' : ''} onclick="changeJobPage(${currentPage + 1})">Next →</button>
   `;
 }
 
-function changeJobPage(newPage) {
-  jobFilters.page = newPage;
-  loadJobs();
-}
+function changeJobPage(p) { jobFilters.page = p; loadJobs(); }
 
 async function applyForJob(jobId) {
-  if (!authToken) {
-    showToast('Please sign in or use a demo account to apply', 'warning');
+  if (!authToken || !currentUser) {
+    showToast('Please sign in to apply for jobs', 'error');
     openModal('loginModal');
     return;
   }
 
-  const res = await apiCall(`/api/jobs/${jobId}/apply`, { method: 'POST' });
+  if (currentUser.role === 'RECRUITER' || currentUser.role === 'ADMIN') {
+    showToast('Only candidates can apply for jobs', 'error');
+    return;
+  }
+
+  // Resolve candidateId
+  let candidateId = currentCandidate?.id;
+  if (!candidateId) {
+    const cand = allCandidates.find(c => c.email === currentUser.email);
+    candidateId = cand?.id;
+  }
+  if (!candidateId) {
+    showToast('Candidate profile not found. Please set up your profile first.', 'error');
+    return;
+  }
+
+  const res = await apiCall(`/api/jobs/${jobId}/apply?candidateId=${candidateId}`, { method: 'POST' });
   if (res) {
-    showToast('Application submitted successfully! Track it in Applications tab.', 'success');
+    showToast('Application submitted! Track it in the Applications tab.', 'success');
   }
 }
 
 function matchSpecificJob(jobId) {
-  const jobSelect = document.getElementById('matchJobSelect');
-  if (jobSelect) jobSelect.value = jobId;
+  const sel = document.getElementById('matchJobSelect');
+  if (sel) sel.value = jobId;
   switchView('matcher');
   runMatchCalculation();
 }
@@ -403,152 +440,161 @@ function matchSpecificJob(jobId) {
 // Smart Matcher (DSA Engine)
 // ==========================================
 async function runMatchCalculation() {
-  const candidateId = document.getElementById('matchCandidateSelect').value;
-  const jobId = document.getElementById('matchJobSelect').value;
-
+  const candidateId = document.getElementById('matchCandidateSelect')?.value;
+  const jobId = document.getElementById('matchJobSelect')?.value;
   if (!candidateId || !jobId) return;
 
-  const gapRes = await apiCall(`/api/match/gap/candidate/${candidateId}/job/${jobId}`);
+  // Correct endpoint: GET /api/candidates/{id}/jobs/{jobId}/skill-gap
+  const gapRes = await apiCall(`/api/candidates/${candidateId}/jobs/${jobId}/skill-gap`);
   if (!gapRes) return;
 
-  const score = gapRes.overallScore !== undefined ? gapRes.overallScore : 85.0;
-  updateRadialScore(score);
+  // Fields: matchScore, skillScore, experienceScore, locationScore
+  const overall  = gapRes.matchScore ?? gapRes.overallScore ?? 0;
+  const skillSc  = gapRes.skillScore ?? 0;
+  const expSc    = gapRes.experienceScore ?? 0;
+  const locSc    = gapRes.locationScore ?? 0;
 
-  // Update dimensional scores
-  const skillScore = gapRes.skillScore || 0;
-  const expScore = gapRes.experienceScore !== undefined ? gapRes.experienceScore : (gapRes.overallScore > 60 ? 100 : 75);
-  const locScore = gapRes.locationScore !== undefined ? gapRes.locationScore : 100;
+  updateRadialScore(overall);
+  setBar('skillScoreBar', 'skillScoreText', skillSc, '#6366f1');
+  setBar('expScoreBar',   'expScoreText',   expSc,   '#06b6d4');
+  setBar('locScoreBar',   'locScoreText',   locSc,   '#10b981');
+}
 
-  document.getElementById('skillScoreText').textContent = `${skillScore.toFixed(1)}%`;
-  document.getElementById('skillScoreBar').style.width = `${skillScore}%`;
-
-  document.getElementById('expScoreText').textContent = `${expScore.toFixed(1)}%`;
-  document.getElementById('expScoreBar').style.width = `${expScore}%`;
-
-  document.getElementById('locScoreText').textContent = `${locScore.toFixed(1)}%`;
-  document.getElementById('locScoreBar').style.width = `${locScore}%`;
+function setBar(barId, textId, value, color) {
+  const bar = document.getElementById(barId);
+  const txt = document.getElementById(textId);
+  if (bar) { bar.style.width = `${value}%`; bar.style.background = color; }
+  if (txt) txt.textContent = `${value.toFixed(1)}%`;
 }
 
 function updateRadialScore(score) {
   const circle = document.getElementById('dialScoreCircle');
-  const text = document.getElementById('dialScoreValue');
-
-  const circumference = 251.2; // 2 * pi * 40
-  const offset = circumference - (score / 100) * circumference;
-
-  circle.style.strokeDashoffset = offset;
+  const text   = document.getElementById('dialScoreValue');
+  if (!circle || !text) return;
+  const circumference = 2 * Math.PI * 40; // 251.327
+  circle.style.strokeDashoffset = circumference - (score / 100) * circumference;
   text.textContent = `${score.toFixed(1)}%`;
 }
 
 async function loadTopJobMatches() {
-  const candidateId = document.getElementById('matchCandidateSelect').value;
-  if (!candidateId) return;
+  const candidateId = document.getElementById('matchCandidateSelect')?.value;
+  if (!candidateId) { showToast('Select a candidate first', 'error'); return; }
 
   const container = document.getElementById('topRecommendationsContainer');
-  const tbody = document.getElementById('topRecTableBody');
-  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Calculating PriorityQueue top matches...</td></tr>`;
+  const tbody     = document.getElementById('topRecTableBody');
   container.style.display = 'block';
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text-muted)">Calculating top matches…</td></tr>`;
 
-  const matches = await apiCall(`/api/match/candidate/${candidateId}?limit=5`);
+  // Correct endpoint: GET /api/candidates/{id}/matches?topK=5
+  const matches = await apiCall(`/api/candidates/${candidateId}/matches?topK=5`);
   if (!matches || matches.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No matching recommendations available.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No recommendations available.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = matches.map(m => `
-    <tr>
-      <td><strong>${m.jobTitle || 'Developer'}</strong></td>
-      <td>${m.company || 'Tech Corp'}</td>
-      <td>${m.location || 'Remote'}</td>
-      <td>₹${((m.salaryMin || 600000)/100000).toFixed(1)}L - ₹${((m.salaryMax || 1200000)/100000).toFixed(1)}L</td>
-      <td><span class="badge ${m.overallScore >= 75 ? 'badge-success' : 'badge-warning'}">${m.overallScore.toFixed(1)}%</span></td>
-      <td><button class="btn btn-primary btn-sm" onclick="applyForJob(${m.jobId})">Apply</button></td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = matches.map(m => {
+    // Fields from MatchResultResponse
+    const score   = m.matchScore ?? m.overallScore ?? 0;
+    const salMin  = ((m.salaryMin || 0) / 100000).toFixed(1);
+    const salMax  = ((m.salaryMax || 0) / 100000).toFixed(1);
+    const cls     = score >= 75 ? 'badge-success' : 'badge-warning';
+    return `
+      <tr>
+        <td><strong>${m.jobTitle || '–'}</strong></td>
+        <td>${m.company || '–'}</td>
+        <td>${m.location || '–'}</td>
+        <td>₹${salMin}L – ₹${salMax}L</td>
+        <td><span class="badge ${cls}">${score.toFixed(1)}%</span></td>
+        <td><button class="btn btn-primary btn-sm" onclick="applyForJob(${m.jobId})">Apply</button></td>
+      </tr>`;
+  }).join('');
 }
 
 // ==========================================
 // Skill Gap Analysis
 // ==========================================
 async function runSkillGapAnalysis() {
-  const candidateId = document.getElementById('gapCandidateSelect').value;
-  const jobId = document.getElementById('gapJobSelect').value;
-
+  const candidateId = document.getElementById('gapCandidateSelect')?.value;
+  const jobId       = document.getElementById('gapJobSelect')?.value;
   if (!candidateId || !jobId) return;
 
-  const gap = await apiCall(`/api/match/gap/candidate/${candidateId}/job/${jobId}`);
+  // Correct endpoint: GET /api/candidates/{id}/jobs/{jobId}/skill-gap
+  const gap = await apiCall(`/api/candidates/${candidateId}/jobs/${jobId}/skill-gap`);
   if (!gap) return;
 
-  renderSkillChips('gapMatchedRequired', gap.matchedRequiredSkills || [], 'skill-req');
-  renderSkillChips('gapMatchedPreferred', gap.matchedPreferredSkills || [], 'skill-pref');
-  renderSkillChips('gapMissingRequired', gap.missingRequiredSkills || [], 'skill-req', true);
-  renderSkillChips('gapMissingPreferred', gap.missingPreferredSkills || [], 'skill-pref', true);
+  // Fields: matchingRequiredSkills, missingRequiredSkills, matchingPreferredSkills, missingPreferredSkills
+  renderSkillChips('gapMatchedRequired',   toArray(gap.matchingRequiredSkills),  'skill-req',  false);
+  renderSkillChips('gapMatchedPreferred',  toArray(gap.matchingPreferredSkills), 'skill-pref', false);
+  renderSkillChips('gapMissingRequired',   toArray(gap.missingRequiredSkills),   'skill-req',  true);
+  renderSkillChips('gapMissingPreferred',  toArray(gap.missingPreferredSkills),  'skill-pref', true);
 }
 
-function renderSkillChips(containerId, skills, baseClass, isMissing = false) {
+function toArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return Array.from(val);
+}
+
+function renderSkillChips(containerId, skills, chipClass, isMissing) {
   const el = document.getElementById(containerId);
   if (!el) return;
-
-  if (skills.length === 0) {
-    el.innerHTML = `<span style="color:var(--text-muted);font-size:0.85rem;">None</span>`;
+  if (!skills || skills.length === 0) {
+    el.innerHTML = `<span style="color:var(--text-muted);font-size:0.85rem">None</span>`;
     return;
   }
-
   el.innerHTML = skills.map(s => `
-    <span class="skill-chip ${baseClass}" style="${isMissing ? 'opacity: 0.85; border-style: dashed;' : ''}">
-      ${isMissing ? '✕ ' : '✓ '}${s}
-    </span>
-  `).join('');
+    <span class="skill-chip ${chipClass}" style="${isMissing ? 'border-style:dashed;opacity:0.85' : ''}">
+      ${isMissing ? '✕' : '✓'} ${s}
+    </span>`).join('');
 }
 
 // ==========================================
-// Applications Center
+// Applications
 // ==========================================
 async function loadApplications() {
   const tbody = document.getElementById('applicationsTableBody');
-  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Loading applications...</td></tr>`;
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text-muted)">Loading…</td></tr>`;
 
-  if (!authToken) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);">Please sign in to view applications.</td></tr>`;
+  if (!authToken || !currentUser) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-secondary)">Please sign in to view applications.</td></tr>`;
     return;
   }
 
-  // If recruiter, load job applications
-  let apps = [];
-  if (currentUser && (currentUser.role === 'RECRUITER' || currentUser.role === 'ADMIN')) {
-    // Recruiter can view applications for job 1 as demo, or their posted jobs
-    apps = await apiCall('/api/jobs/1/applications');
+  let apps = null;
+  const isRecruiter = currentUser.role === 'RECRUITER' || currentUser.role === 'ADMIN';
+
+  if (isRecruiter) {
+    // Load applications for their first posted job as a preview
+    if (allJobs.length > 0) {
+      apps = await apiCall(`/api/jobs/${allJobs[0].id}/applications`);
+    }
   } else {
-    // Candidate applications
-    apps = await apiCall('/api/applications/my');
+    // Candidate: load by candidateId (correct endpoint is /api/candidates/{id}/applications)
+    let cId = currentCandidate?.id;
+    if (!cId) cId = allCandidates.find(c => c.email === currentUser.email)?.id;
+    if (cId) {
+      apps = await apiCall(`/api/candidates/${cId}/applications`);
+    }
   }
 
   if (!apps || apps.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No applications found. Apply to a job to see it here!</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No applications found. Apply to a job to see it here!</td></tr>`;
     return;
   }
 
-  const isRecruiter = currentUser && (currentUser.role === 'RECRUITER' || currentUser.role === 'ADMIN');
-
   tbody.innerHTML = apps.map(a => {
-    const candidateName = a.candidate ? (a.candidate.name || 'Candidate') : (currentUser ? currentUser.name : 'Candidate');
-    const jobTitle = a.job ? `${a.job.title} @ ${a.job.company}` : 'Job Opportunity';
-    const dateStr = a.appliedDate || '2026-08-28';
+    const candidateName = a.candidateName || (currentUser?.name) || 'Candidate';
+    const jobTitle = a.jobTitle ? `${a.jobTitle} @ ${a.company || ''}` : 'Job';
+    const dateStr  = a.appliedDate || '–';
 
-    let actionHtml = '';
-    if (isRecruiter) {
-      actionHtml = `
-        <select class="app-status-select" onchange="updateAppStatus(${a.id}, this.value)">
-          <option value="APPLIED" ${a.status === 'APPLIED' ? 'selected' : ''}>APPLIED</option>
-          <option value="SHORTLISTED" ${a.status === 'SHORTLISTED' ? 'selected' : ''}>SHORTLISTED</option>
-          <option value="INTERVIEW" ${a.status === 'INTERVIEW' ? 'selected' : ''}>INTERVIEW</option>
-          <option value="SELECTED" ${a.status === 'SELECTED' ? 'selected' : ''}>SELECTED</option>
-          <option value="REJECTED" ${a.status === 'REJECTED' ? 'selected' : ''}>REJECTED</option>
-        </select>
-      `;
-    } else {
-      actionHtml = `<span style="color:var(--text-muted);font-size:0.8rem;">In Review</span>`;
-    }
+    const actionHtml = isRecruiter
+      ? `<select class="app-status-select" onchange="updateAppStatus(${a.id}, this.value)">
+           ${['APPLIED','SHORTLISTED','INTERVIEW','SELECTED','REJECTED'].map(s =>
+             `<option value="${s}" ${a.status === s ? 'selected' : ''}>${s}</option>`
+           ).join('')}
+         </select>`
+      : `<span class="badge ${getStatusBadgeClass(a.status)}">${a.status}</span>`;
 
     return `
       <tr>
@@ -558,168 +604,167 @@ async function loadApplications() {
         <td>${dateStr}</td>
         <td><span class="badge ${getStatusBadgeClass(a.status)}">${a.status}</span></td>
         <td>${actionHtml}</td>
-      </tr>
-    `;
+      </tr>`;
   }).join('');
 }
 
 function getStatusBadgeClass(status) {
-  switch (status) {
+  switch(status) {
     case 'SHORTLISTED': return 'badge-primary';
-    case 'INTERVIEW': return 'badge-warning';
-    case 'SELECTED': return 'badge-success';
-    case 'REJECTED': return 'badge-danger';
-    default: return 'badge-primary';
+    case 'INTERVIEW':   return 'badge-warning';
+    case 'SELECTED':    return 'badge-success';
+    case 'REJECTED':    return 'badge-danger';
+    default:            return 'badge-primary';
   }
 }
 
 async function updateAppStatus(appId, newStatus) {
   const res = await apiCall(`/api/applications/${appId}/status?status=${newStatus}`, { method: 'PUT' });
-  if (res) {
-    showToast(`Application #${appId} status changed to ${newStatus}`, 'success');
-  }
+  if (res) showToast(`Application #${appId} updated to ${newStatus}`, 'success');
 }
 
 // ==========================================
-// Candidate Profile & Skill Editor
+// Candidate Profile
 // ==========================================
 async function loadCandidateProfile() {
   const container = document.getElementById('profileDetailsContainer');
+  if (!container) return;
 
-  if (!currentCandidate && (!currentUser || currentUser.role !== 'CANDIDATE')) {
+  if (!currentUser || currentUser.role === 'RECRUITER' || currentUser.role === 'ADMIN') {
     container.innerHTML = `
-      <div style="text-align:center;padding:24px;">
-        <p style="color:var(--text-secondary);margin-bottom:12px;">You are currently viewing as Recruiter or Guest.</p>
-        <button class="btn btn-primary" onclick="quickLogin('satya@example.com', 'password123', 'Satya Prakash (Candidate)')">
+      <div style="text-align:center;padding:32px">
+        <p style="color:var(--text-secondary);margin-bottom:16px">You are signed in as <strong>${currentUser?.role || 'Guest'}</strong>. Profile management is for candidates.</p>
+        <button class="btn btn-primary" onclick="quickLogin('satya@example.com','password123','Satya Prakash')">
           Switch to Candidate (Satya)
         </button>
-      </div>
-    `;
+      </div>`;
     return;
   }
 
-  const cand = currentCandidate || allCandidates[0];
-  if (!cand) return;
+  if (!currentCandidate) {
+    currentCandidate = allCandidates.find(c => c.email === currentUser?.email) || allCandidates[0];
+  }
 
+  if (!currentCandidate) {
+    container.innerHTML = `<p style="color:var(--text-secondary)">No candidate profile found. Please contact support.</p>`;
+    return;
+  }
+
+  const cand = currentCandidate;
   container.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
       <div>
-        <label style="font-size:0.8rem;color:var(--text-muted);">FULL NAME</label>
-        <div style="font-size:1.1rem;font-weight:700;color:#fff;">${cand.name || currentUser.name}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">FULL NAME</div>
+        <div style="font-size:1.1rem;font-weight:700">${cand.name}</div>
       </div>
       <div>
-        <label style="font-size:0.8rem;color:var(--text-muted);">PREFERRED ROLE</label>
-        <div style="font-size:1.1rem;font-weight:700;color:#fff;">${cand.preferredRole || 'Software Engineer'}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">PREFERRED ROLE</div>
+        <div style="font-size:1.1rem;font-weight:700">${cand.preferredRole || '–'}</div>
       </div>
       <div>
-        <label style="font-size:0.8rem;color:var(--text-muted);">EXPERIENCE</label>
-        <div style="font-size:1.1rem;font-weight:700;color:#fff;">${cand.experience} Years</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">EXPERIENCE</div>
+        <div style="font-size:1.1rem;font-weight:700">${cand.experience} Years</div>
       </div>
       <div>
-        <label style="font-size:0.8rem;color:var(--text-muted);">LOCATION</label>
-        <div style="font-size:1.1rem;font-weight:700;color:#fff;">${cand.preferredLocation || 'Hyderabad'}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">PREFERRED LOCATION</div>
+        <div style="font-size:1.1rem;font-weight:700">${cand.preferredLocation || '–'}</div>
       </div>
     </div>
 
-    <div style="border-top:1px solid var(--border-subtle);padding-top:20px;">
-      <h3 style="font-size:1rem;margin-bottom:12px;">Candidate Skill Set</h3>
-      <div class="skills-list" id="profileSkillChips" style="margin-bottom:16px;">
+    <div style="border-top:1px solid var(--border-subtle);padding-top:20px">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px">Your Skill Tags</h3>
+      <div class="skills-list" style="margin-bottom:16px">
         ${(cand.skills || []).map(s => `
-          <span class="skill-chip skill-req" style="cursor:pointer;" onclick="removeProfileSkill('${s}', ${cand.id})" title="Click to remove">
+          <span class="skill-chip skill-req" style="cursor:pointer" onclick="removeSkill('${s}',${cand.id})" title="Click to remove">
             ${s} ✕
-          </span>
-        `).join('')}
+          </span>`).join('') || '<span style="color:var(--text-muted)">No skills added yet.</span>'}
       </div>
 
-      <div style="display:flex;gap:10px;">
-        <input type="text" id="newSkillInput" class="input-field" placeholder="Add skill (e.g. Docker, AWS, React)..." style="flex:1;">
-        <button class="btn btn-primary btn-sm" onclick="addProfileSkill(${cand.id})">+ Add Skill</button>
+      <div style="display:flex;gap:10px">
+        <input type="text" id="newSkillInput" class="input-field" placeholder="Add a skill e.g. Kubernetes, React..." style="flex:1"
+               onkeydown="if(event.key==='Enter')addSkill(${cand.id})">
+        <button class="btn btn-primary btn-sm" onclick="addSkill(${cand.id})">+ Add</button>
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
-async function addProfileSkill(candidateId) {
+async function addSkill(candidateId) {
   const input = document.getElementById('newSkillInput');
-  const skillName = input.value.trim();
-  if (!skillName) return;
+  const name  = input?.value.trim();
+  if (!name) return;
 
-  const cand = currentCandidate || allCandidates.find(c => c.id === candidateId);
-  const updatedSkills = Array.from(new Set([...(cand.skills || []), skillName]));
+  const cand = allCandidates.find(c => c.id === candidateId) || currentCandidate;
+  const updated = Array.from(new Set([...(cand.skills || []), name]));
 
+  // PUT /api/candidates/{id}/skills replaces the full skill list
   const res = await apiCall(`/api/candidates/${candidateId}/skills`, {
     method: 'PUT',
-    body: JSON.stringify(updatedSkills)
+    body: JSON.stringify(updated)
   });
 
   if (res) {
-    showToast(`Added ${skillName} to profile skills!`, 'success');
-    cand.skills = updatedSkills;
+    showToast(`Added "${name}" to your profile`, 'success');
+    cand.skills = res.skills || updated;
+    if (currentCandidate?.id === candidateId) currentCandidate = { ...cand, skills: res.skills || updated };
+    if (input) input.value = '';
     loadCandidateProfile();
   }
 }
 
-async function removeProfileSkill(skillName, candidateId) {
-  const cand = currentCandidate || allCandidates.find(c => c.id === candidateId);
-  const updatedSkills = (cand.skills || []).filter(s => s !== skillName);
+async function removeSkill(skillName, candidateId) {
+  const cand = allCandidates.find(c => c.id === candidateId) || currentCandidate;
+  const updated = (cand.skills || []).filter(s => s !== skillName);
 
+  // PUT /api/candidates/{id}/skills replaces the full skill list
   const res = await apiCall(`/api/candidates/${candidateId}/skills`, {
     method: 'PUT',
-    body: JSON.stringify(updatedSkills)
+    body: JSON.stringify(updated)
   });
 
   if (res) {
-    showToast(`Removed ${skillName}`, 'info');
-    cand.skills = updatedSkills;
+    showToast(`Removed "${skillName}"`, 'info');
+    cand.skills = res.skills || updated;
+    if (currentCandidate?.id === candidateId) currentCandidate = { ...cand, skills: res.skills || updated };
     loadCandidateProfile();
   }
 }
 
 // ==========================================
-// Recruiter Job Posting
+// Post a Job (Recruiter)
 // ==========================================
 async function handlePostJob(e) {
   e.preventDefault();
 
-  const title = document.getElementById('jobTitle').value.trim();
-  const company = document.getElementById('jobCompany').value.trim();
-  const location = document.getElementById('jobLocation').value.trim();
-  const jobType = document.getElementById('jobPostType').value;
-  const experienceRequired = parseFloat(document.getElementById('jobExp').value);
-  const salaryMin = parseFloat(document.getElementById('jobSalaryMin').value);
-  const salaryMax = parseFloat(document.getElementById('jobSalaryMax').value);
-  const description = document.getElementById('jobDescription').value.trim();
-
-  const reqSkills = document.getElementById('jobReqSkills').value
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-
+  // Build skills in the correct {name, required, weight} format expected by JobCreateRequest
+  const reqSkills  = document.getElementById('jobReqSkills').value
+    .split(',').map(s => s.trim()).filter(Boolean)
+    .map(name => ({ name, required: true,  weight: 5 }));
   const prefSkills = document.getElementById('jobPrefSkills').value
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
+    .split(',').map(s => s.trim()).filter(Boolean)
+    .map(name => ({ name, required: false, weight: 2 }));
 
   const payload = {
-    title,
-    company,
-    location,
-    jobType,
-    experienceRequired,
-    salaryMin,
-    salaryMax,
-    description,
-    requiredSkills: reqSkills,
-    preferredSkills: prefSkills
+    title:              document.getElementById('jobTitle').value.trim(),
+    company:            document.getElementById('jobCompany').value.trim(),
+    location:           document.getElementById('jobLocation').value.trim(),
+    jobType:            document.getElementById('jobPostType').value,
+    experienceRequired: parseFloat(document.getElementById('jobExp').value) || 0,
+    salaryMin:          parseFloat(document.getElementById('jobSalaryMin').value) || 0,
+    salaryMax:          parseFloat(document.getElementById('jobSalaryMax').value) || 0,
+    description:        document.getElementById('jobDescription').value.trim(),
+    skills:             [...reqSkills, ...prefSkills]
   };
 
-  const res = await apiCall('/api/jobs', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  });
+  // recruiterId is the currentUser's id (User entity linked to Recruiter/Admin role)
+  const recruiterId = currentUser?.id;
+  if (!recruiterId) {
+    showToast('Could not resolve recruiter ID. Please sign in again.', 'error');
+    return;
+  }
 
+  const res = await apiCall(`/api/jobs?recruiterId=${recruiterId}`, { method: 'POST', body: JSON.stringify(payload) });
   if (res) {
-    showToast(`Job "${title}" published successfully!`, 'success');
+    showToast(`"${payload.title}" posted successfully!`, 'success');
     closeModal('postJobModal');
     document.getElementById('postJobForm').reset();
     await loadJobs();
@@ -728,39 +773,48 @@ async function handlePostJob(e) {
 }
 
 // ==========================================
-// Modals & Toasts
+// Login Modal
 // ==========================================
-function openModal(id) {
-  const el = document.getElementById(id);
-  if (el) el.classList.add('active');
-}
-
-function closeModal(id) {
-  const el = document.getElementById(id);
-  if (el) el.classList.remove('active');
-}
-
 async function handleCustomLogin(e) {
   e.preventDefault();
-  const email = document.getElementById('loginEmail').value.trim();
+  const email    = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   closeModal('loginModal');
   await quickLogin(email, password, email);
 }
 
+// ==========================================
+// Modals
+// ==========================================
+function openModal(id) {
+  document.getElementById(id)?.classList.add('active');
+}
+
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove('active');
+}
+
+// Close modals on overlay click
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('active');
+  }
+});
+
+// ==========================================
+// Toasts
+// ==========================================
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
-
-  const icon = type === 'success' ? '✓' : (type === 'error' ? '✕' : 'ℹ');
-  toast.innerHTML = `<span><strong>${icon}</strong></span> <span>${message}</span>`;
-
+  const icons = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
+  toast.innerHTML = `<span style="font-weight:700">${icons[type] || 'ℹ'}</span><span>${message}</span>`;
   container.appendChild(toast);
   setTimeout(() => {
+    toast.style.transition = 'all 0.3s ease';
     toast.style.opacity = '0';
     toast.style.transform = 'translateY(10px)';
-    toast.style.transition = 'all 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
-  }, 3500);
+    setTimeout(() => toast.remove(), 320);
+  }, 3800);
 }

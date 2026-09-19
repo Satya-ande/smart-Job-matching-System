@@ -1,6 +1,5 @@
 package com.smartjob.dto.response;
 
-import java.util.List;
 import java.util.Set;
 
 /**

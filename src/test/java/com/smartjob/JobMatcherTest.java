@@ -5,7 +5,6 @@ import com.smartjob.model.Job;
 import com.smartjob.model.MatchResult;
 import com.smartjob.service.JobMatcher;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 

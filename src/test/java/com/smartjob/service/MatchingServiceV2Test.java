@@ -45,7 +45,7 @@ class MatchingServiceV2Test {
     private User testUser;
     private Candidate candidate;
     private Skill java, spring, sql, docker, aws;
-    private Job javaJob, pythonJob, devopsJob, internJob;
+    private Job javaJob, devopsJob, internJob;
 
     @BeforeEach
     void setUp() {

@@ -1,7 +1,6 @@
 package com.smartjob.entity;
 
 import jakarta.persistence.*;
-import java.util.Objects;
 
 /**
  * JPA Entity representing a normalized skill.

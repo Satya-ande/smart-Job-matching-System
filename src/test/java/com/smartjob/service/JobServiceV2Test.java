@@ -4,7 +4,6 @@ import com.smartjob.dto.request.JobCreateRequest;
 import com.smartjob.dto.request.JobUpdateRequest;
 import com.smartjob.dto.response.JobResponse;
 import com.smartjob.entity.Job;
-import com.smartjob.entity.Skill;
 import com.smartjob.entity.User;
 import com.smartjob.entity.enums.JobType;
 import com.smartjob.entity.enums.Role;
@@ -25,7 +24,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 

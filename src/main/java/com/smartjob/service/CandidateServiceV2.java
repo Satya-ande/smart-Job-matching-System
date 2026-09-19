@@ -200,4 +200,33 @@ public class CandidateServiceV2 {
             .map(EntityMapper::toCandidateResponse)
             .collect(Collectors.toList());
     }
+
+    /**
+     * Replace all skills for a candidate with the provided list of skill names.
+     * Used by the web UI profile editor (PUT /api/candidates/{id}/skills).
+     */
+    @Transactional
+    public CandidateResponse replaceSkills(Long candidateId, List<String> skillNames) {
+        Candidate candidate = findCandidateEntity(candidateId);
+        // Clear existing skills
+        candidate.getSkills().clear();
+        // Re-add from provided names (findOrCreate ensures Skill entities exist)
+        for (String name : skillNames) {
+            if (name != null && !name.isBlank()) {
+                Skill skill = skillService.findOrCreate(name.trim());
+                candidate.addSkill(skill);
+            }
+        }
+        Candidate saved = candidateRepository.save(candidate);
+        log.info("Replaced skills for candidate {}: {}", candidateId, skillNames);
+        return EntityMapper.toCandidateResponse(saved);
+    }
+
+    /**
+     * Return total number of candidates.
+     */
+    @Transactional(readOnly = true)
+    public long count() {
+        return candidateRepository.count();
+    }
 }

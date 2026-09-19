@@ -31,20 +31,17 @@ public class DataSeeder implements CommandLineRunner {
     private final CandidateRepository candidateRepository;
     private final SkillRepository skillRepository;
     private final JobRepository jobRepository;
-    private final ApplicationRepository applicationRepository;
     private final PasswordEncoder passwordEncoder;
 
     public DataSeeder(UserRepository userRepository,
                       CandidateRepository candidateRepository,
                       SkillRepository skillRepository,
                       JobRepository jobRepository,
-                      ApplicationRepository applicationRepository,
                       PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.candidateRepository = candidateRepository;
         this.skillRepository = skillRepository;
         this.jobRepository = jobRepository;
-        this.applicationRepository = applicationRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -71,13 +68,13 @@ public class DataSeeder implements CommandLineRunner {
         Skill css = createSkill("CSS");
         Skill git = createSkill("Git");
         Skill kubernetes = createSkill("Kubernetes");
-        Skill mongodb = createSkill("MongoDB");
+        createSkill("MongoDB");
         Skill typescript = createSkill("TypeScript");
-        Skill nodejs = createSkill("Node.js");
+        createSkill("Node.js");
 
         // ===== 2. Create Users =====
         // Default Admin
-        User admin = createUser("System Admin", "admin@smartjob.com", "Admin@123", Role.ADMIN);
+        createUser("System Admin", "admin@smartjob.com", "Admin@123", Role.ADMIN);
 
         // Default Recruiter
         User recruiter = createUser("Tech Recruiter", "recruiter@smartjob.com", "Recruiter@123", Role.RECRUITER);
@@ -95,57 +92,57 @@ public class DataSeeder implements CommandLineRunner {
         // ===== 3. Create Candidate Profiles =====
         createCandidate(defaultCandidate, "B.Tech Computer Science", 3.0,
             "Software Engineer", "Hyderabad", Set.of(java, spring, sql, git));
-        Candidate satya = createCandidate(satyaUser, "B.Tech Computer Science", 2.0,
+        createCandidate(satyaUser, "B.Tech Computer Science", 2.0,
             "Java Developer", "Hyderabad", Set.of(java, python, sql, spring, git));
 
-        Candidate priya = createCandidate(priyaUser, "M.Tech Software Engineering", 4.0,
+        createCandidate(priyaUser, "M.Tech Software Engineering", 4.0,
             "Full Stack Developer", "Bengaluru", Set.of(java, react, javascript, html, css, spring));
 
-        Candidate rahul = createCandidate(rahulUser, "B.Tech IT", 1.5,
+        createCandidate(rahulUser, "B.Tech IT", 1.5,
             "Backend Developer", "Pune", Set.of(python, sql, docker, git));
 
-        Candidate ankit = createCandidate(ankitUser, "MCA", 3.0,
+        createCandidate(ankitUser, "MCA", 3.0,
             "Cloud Engineer", "Hyderabad", Set.of(aws, docker, kubernetes, python, sql));
 
-        Candidate neha = createCandidate(nehaUser, "B.Tech CSE", 5.0,
+        createCandidate(nehaUser, "B.Tech CSE", 5.0,
             "Tech Lead", "Bengaluru", Set.of(java, spring, react, aws, docker, sql, git));
 
         // ===== 4. Create Jobs (matching V1 data) =====
-        Job job1 = createJob(recruiter, "Java Backend Developer", "TCS", "Hyderabad",
+        createJob(recruiter, "Java Backend Developer", "TCS", "Hyderabad",
             3.0, 600000, 1000000, JobType.FULL_TIME,
             "Develop and maintain Java-based backend services",
             List.of(new SkillWeight(java, true), new SkillWeight(spring, true),
                     new SkillWeight(sql, true), new SkillWeight(docker, false),
                     new SkillWeight(git, false)));
 
-        Job job2 = createJob(recruiter, "Full Stack Developer", "Infosys", "Bengaluru",
+        createJob(recruiter, "Full Stack Developer", "Infosys", "Bengaluru",
             2.0, 700000, 1200000, JobType.FULL_TIME,
             "Build full stack web applications using Java and React",
             List.of(new SkillWeight(java, true), new SkillWeight(react, true),
                     new SkillWeight(javascript, true), new SkillWeight(spring, false),
                     new SkillWeight(html, false), new SkillWeight(css, false)));
 
-        Job job3 = createJob(recruiter, "Python Data Engineer", "Wipro", "Pune",
+        createJob(recruiter, "Python Data Engineer", "Wipro", "Pune",
             1.0, 500000, 800000, JobType.FULL_TIME,
             "Design and implement data pipelines",
             List.of(new SkillWeight(python, true), new SkillWeight(sql, true),
                     new SkillWeight(aws, false)));
 
-        Job job4 = createJob(recruiter, "DevOps Engineer", "Amazon", "Hyderabad",
+        createJob(recruiter, "DevOps Engineer", "Amazon", "Hyderabad",
             3.0, 1200000, 2000000, JobType.REMOTE,
             "Manage cloud infrastructure and CI/CD pipelines",
             List.of(new SkillWeight(aws, true), new SkillWeight(docker, true),
                     new SkillWeight(kubernetes, true), new SkillWeight(python, false),
                     new SkillWeight(git, false)));
 
-        Job job5 = createJob(recruiter, "Frontend Developer", "Zoho", "Chennai",
+        createJob(recruiter, "Frontend Developer", "Zoho", "Chennai",
             2.0, 600000, 900000, JobType.FULL_TIME,
             "Build modern web interfaces",
             List.of(new SkillWeight(react, true), new SkillWeight(javascript, true),
                     new SkillWeight(typescript, false), new SkillWeight(html, false),
                     new SkillWeight(css, false)));
 
-        Job job6 = createJob(recruiter, "Backend Developer Intern", "Startup XYZ", "Remote",
+        createJob(recruiter, "Backend Developer Intern", "Startup XYZ", "Remote",
             0.0, 300000, 500000, JobType.INTERNSHIP,
             "Learn and contribute to backend systems",
             List.of(new SkillWeight(java, true), new SkillWeight(sql, false),

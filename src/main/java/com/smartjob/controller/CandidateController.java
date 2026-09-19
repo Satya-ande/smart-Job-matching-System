@@ -4,16 +4,14 @@ import com.smartjob.dto.request.CandidateCreateRequest;
 import com.smartjob.dto.request.CandidateUpdateRequest;
 import com.smartjob.dto.request.SkillRequest;
 import com.smartjob.dto.response.CandidateResponse;
-import com.smartjob.dto.response.SkillResponse;
-import com.smartjob.entity.Skill;
 import com.smartjob.service.CandidateServiceV2;
-import com.smartjob.service.SkillServiceV2;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST Controller for candidate profile management.
@@ -36,11 +34,9 @@ import java.util.List;
 public class CandidateController {
 
     private final CandidateServiceV2 candidateService;
-    private final SkillServiceV2 skillService;
 
-    public CandidateController(CandidateServiceV2 candidateService, SkillServiceV2 skillService) {
+    public CandidateController(CandidateServiceV2 candidateService) {
         this.candidateService = candidateService;
-        this.skillService = skillService;
     }
 
     /**
@@ -124,5 +120,27 @@ public class CandidateController {
     public ResponseEntity<Void> removeSkill(@PathVariable Long id, @PathVariable Long skillId) {
         candidateService.removeSkill(id, skillId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * PUT /api/candidates/{id}/skills
+     * Replace all skills for a candidate with the provided list of skill names.
+     * Used by the web UI profile editor.
+     */
+    @PutMapping("/{id}/skills")
+    public ResponseEntity<CandidateResponse> replaceSkills(
+            @PathVariable Long id,
+            @RequestBody List<String> skillNames) {
+        return ResponseEntity.ok(candidateService.replaceSkills(id, skillNames));
+    }
+
+    /**
+     * GET /api/candidates/count
+     * Returns the total number of candidates (used by stats widget).
+     */
+    @GetMapping("/count")
+    public ResponseEntity<Map<String, Long>> getCandidateCount() {
+        long count = candidateService.count();
+        return ResponseEntity.ok(Map.of("count", count));
     }
 }

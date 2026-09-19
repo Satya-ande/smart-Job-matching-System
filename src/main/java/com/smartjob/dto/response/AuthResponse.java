@@ -6,6 +6,7 @@ package com.smartjob.dto.response;
  */
 public class AuthResponse {
 
+    private Long id;
     private String accessToken;
     private String tokenType = "Bearer";
     private long expiresIn;
@@ -24,8 +25,10 @@ public class AuthResponse {
     }
 
     public String getAccessToken() { return accessToken; }
-    public String getToken() { return accessToken; }
+    public String getToken() { return accessToken; }  // alias for JS compatibility
     public void setAccessToken(String accessToken) { this.accessToken = accessToken; }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
     public String getTokenType() { return tokenType; }
     public void setTokenType(String tokenType) { this.tokenType = tokenType; }
     public long getExpiresIn() { return expiresIn; }

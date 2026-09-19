@@ -75,6 +75,12 @@ public class SecurityConfig {
                 // Public: Browse jobs (GET only)
                 .requestMatchers(HttpMethod.GET, "/api/jobs/**").permitAll()
 
+                // Public: Browse candidates for UI dropdowns (GET only)
+                .requestMatchers(HttpMethod.GET, "/api/candidates/**").permitAll()
+
+                // Public: Matching & skill-gap endpoints (read-only)
+                .requestMatchers(HttpMethod.GET, "/api/match/**").permitAll()
+
                 // Public: Swagger UI and API docs
                 .requestMatchers(
                     "/swagger-ui/**",
